@@ -21,6 +21,8 @@ var table = new Table({
   colWidths: [5, 45, 30, 8]
 });
 
+// generate table for all products
+// acquire user first input: product ID
 function userStart() {
   var query = "SELECT * FROM products;";
   connection.query(query, function(err, res) {
@@ -55,70 +57,69 @@ function userStart() {
       var stockItemID = res[i].item_id;
       for (var i = 0; i < res.length; i++) {
         if (stockItemID === userItemID) {
-          var purchasedItem = res[i];
           console.log(
             "There are " +
-              purchasedItem.stock_quantity +
+              res[i].stock_quantity +
               " of " +
-              purchasedItem.product_name +
+              res[i].product_name +
               "left in stock!"
           );
-          userInput();
+          inquirer.prompt([
+            {
+              name: "quantity",
+              type: "input",
+              message:
+                "How many units of the product would you like to purphase?",
+              validate: function(value) {
+                if (isNaN(value) === false) {
+                  return true;
+                }
+                console.log("\nPlease enter a valid number!");
+                return false;
+              }
+            }
+          ]);
+          var userQuantity = parseInt(user.quantity);
+          var stock = res[i].stock_quantity;
+          if (userQuantity > stock) {
+            console.log("Insufficient quantity in stock! Sorry!");
+            restart();
+          } else {
+            connection.query("UPDATE Products SET ? WHERE ?", [
+              { stock_quantity: stock - userQuantity },
+              { item_id: userItemID }
+            ]),
+              console.log("Your order has been placed!");
+            restart();
+          }
         } else {
           console.log("Sorry! We cannot find the item you entered.");
           restart();
         }
       }
     });
-}
-function userInput() {
-  inquirer.prompt([
-    {
-      name: "quantity",
-      type: "input",
-      message: "How many units of the product would you like to purphase?",
-      validate: function(value) {
-        if (isNaN(value) === false) {
-          return true;
+
+  // acquire second user input: quantity
+
+  // restart the app from beginning
+  function restart() {
+    inquirer
+      .prompt([
+        {
+          name: "restart",
+          message: "Would you like to buy something else?",
+          type: "list",
+          choices: ["Yes", "No, Exit."]
         }
-        console.log("\nPlease enter a valid number!");
-        return false;
-      }
-    }
-  ]);
-  var userQuantity = parseInt(user.quantity);
-  var stock = res.stock_quantity;
-  if (userQuantity > stock) {
-    console.log("Insufficient quantity in stock! Sorry!");
-    restart();
-  } else {
-    connection.query("UPDATE Products SET ? WHERE ?", [
-      { StockQuantity: stock - userQuantity },
-      { ItemID: userItemID }
-    ]),
-      console.log("Your order has been placed!");
-    restart();
+      ])
+      .then(function(user) {
+        if (user.restart === "Yes") {
+          userStart();
+        } else {
+          console.log("Thank you for shopping with us!");
+          process.exit();
+        }
+      });
   }
 }
-
-function restart() {
-  inquirer
-    .prompt([
-      {
-        name: "restart",
-        message: "Would you like to buy something else?",
-        type: "list",
-        choices: ["Yes", "No, Exit."]
-      }
-    ])
-    .then(function(user) {
-      if (user.restart === "Yes") {
-        userStart();
-      } else {
-        console.log("Thank you for shopping with us!");
-        process.exit();
-      }
-    });
-}
-
 userStart();
